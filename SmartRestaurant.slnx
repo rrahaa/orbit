@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SmartRestaurant.Api/SmartRestaurant.Api.csproj" />
+  <Project Path="SmartRestaurant.Shared/SmartRestaurant.Shared.csproj" />
+  <Project Path="SmartRestaurant.Web/SmartRestaurant.Web.csproj" />
+</Solution>

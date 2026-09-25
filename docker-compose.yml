@@ -1,0 +1,29 @@
+﻿services:
+  db:
+    image: mysql:8.4
+    container_name: orbit-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: orbit_root
+      MYSQL_DATABASE: orbit
+      MYSQL_USER: orbit
+      MYSQL_PASSWORD: orbit_pw
+    ports:
+      - "3307:3306"
+    volumes:
+      - orbit_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: orbit-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+    ports:
+      - "8081:80"
+
+volumes:
+  orbit_data:
