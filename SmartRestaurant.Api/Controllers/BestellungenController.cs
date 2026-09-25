@@ -77,24 +77,6 @@ public class BestellungenController : ControllerBase
         return CreatedAtAction(nameof(GetByTisch), new { tischId = bestellung.TischId }, ToDto(bestellung));
     }
 
-    // PUT /api/bestellungen/5/status
-    [HttpPut("{id}/status")]
-    public async Task<IActionResult> SetStatus(uint id, StatusAendernDto dto)
-    {
-        var bestellung = await _db.Bestellung.FindAsync(id);
-        if (bestellung is null) return NotFound();
-
-        bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
-
-        if (dto.NeuerStatusId == 5) // Bezahlt
-        {
-            bestellung.Abschlusszeitpunkt = DateTime.Now;
-        }
-
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
-
     private static BestellungDto ToDto(Models.Bestellung b) => new()
     {
         BestellungId = (int)b.BestellungId,
@@ -113,4 +95,33 @@ public class BestellungenController : ControllerBase
             Einzelpreis = p.Einzelpreis
         }).ToList()
     };
+    
+    // PUT /api/bestellungen/5/status
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> SetStatus(uint id, StatusAendernDto dto)
+    {
+        var bestellung = await _db.Bestellung.FindAsync(id);
+        if (bestellung is null) return NotFound();
+
+        bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
+
+        if (dto.NeuerStatusId == 5) // Bezahlt
+        {
+            bestellung.Abschlusszeitpunkt = DateTime.Now;
+            await _db.SaveChangesAsync();
+
+            // Tisch nur freigeben, wenn KEINE andere Bestellung dieses Tisches noch offen ist
+            var nochOffen = await _db.Bestellung
+                .AnyAsync(b => b.TischId == bestellung.TischId && b.BestellStatusId != 5);
+
+            if (!nochOffen)
+            {
+                var tisch = await _db.Tisch.FindAsync(bestellung.TischId);
+                if (tisch is not null) tisch.TischStatusId = 1; // frei
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }
