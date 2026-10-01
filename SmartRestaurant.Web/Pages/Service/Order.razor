@@ -10,21 +10,9 @@
             <h1>Bestellung aufnehmen</h1>
         </div>
 
-        <div class="employee-box">
-            <label for="employee">Mitarbeiter</label>
-            <select id="employee" @bind="selectedEmployeeId" disabled="@(employees.Count == 0)">
-                @if (employees.Count == 0)
-                {
-                    <option value="1">Mitarbeiter 1</option>
-                }
-                else
-                {
-                    @foreach (var employee in employees.Where(x => x.IstAktiv))
-                    {
-                        <option value="@employee.MitarbeiterId">@employee.Name</option>
-                    }
-                }
-            </select>
+        <div class="login-assignment">
+            <span class="login-label">Mitarbeiter</span>
+            <strong>Zuordnung später über Login</strong>
         </div>
     </header>
 
@@ -83,7 +71,16 @@
                     <span class="section-label">SORTIMENT</span>
                     <h2>Produkte</h2>
                 </div>
-                <input class="search-input" @bind="searchText" @bind:event="oninput" placeholder="Produkt suchen…" />
+                <div class="product-filters">
+                    <select class="category-select" @bind="selectedCategory">
+                        <option value="">Alle Kategorien</option>
+                        @foreach (var category in Categories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                    <input class="search-input" @bind="searchText" @bind:event="oninput" placeholder="Produkt suchen…" />
+                </div>
             </div>
 
             @if (isLoading)
@@ -185,22 +182,28 @@
     private readonly List<CartItem> cart = new();
     private List<ArtikelDto> products = new();
     private List<TischUebersichtDto> tables = new();
-    private List<MitarbeiterDto> employees = new();
-
     private TischUebersichtDto? selectedTable;
-    private int selectedEmployeeId = 1;
+    private const int FallbackEmployeeId = 1; // TODO: später durch Mitarbeiter-ID aus dem Login ersetzen.
+    private string selectedCategory = string.Empty;
     private string searchText = string.Empty;
     private string? errorMessage;
     private string? successMessage;
     private bool isLoading = true;
     private bool isSubmitting;
 
+    private IEnumerable<string> Categories =>
+        products.Select(x => x.Kategorie)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x);
+
     private IEnumerable<ArtikelDto> FilteredProducts =>
-        string.IsNullOrWhiteSpace(searchText)
-            ? products
-            : products.Where(x =>
-                x.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                x.Kategorie.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+        products.Where(x =>
+            (string.IsNullOrWhiteSpace(selectedCategory) ||
+             x.Kategorie.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(searchText) ||
+             x.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+             x.Kategorie.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
 
     private decimal Total => cart.Sum(x => x.Product.Preis * x.Quantity);
 
@@ -218,19 +221,11 @@
         {
             var productTask = Http.GetFromJsonAsync<List<ArtikelDto>>("api/artikel");
             var tableTask = Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische");
-            var employeeTask = Http.GetFromJsonAsync<List<MitarbeiterDto>>("api/mitarbeiter");
 
-            await Task.WhenAll(productTask!, tableTask!, employeeTask!);
+            await Task.WhenAll(productTask!, tableTask!);
 
             products = await productTask ?? new();
             tables = await tableTask ?? new();
-            employees = await employeeTask ?? new();
-
-            var firstActiveEmployee = employees.FirstOrDefault(x => x.IstAktiv);
-            if (firstActiveEmployee is not null)
-            {
-                selectedEmployeeId = firstActiveEmployee.MitarbeiterId;
-            }
         }
         catch (Exception ex)
         {
@@ -294,7 +289,7 @@
             var dto = new NeueBestellungDto
             {
                 TischId = selectedTable.TischId,
-                MitarbeiterId = selectedEmployeeId,
+                MitarbeiterId = FallbackEmployeeId,
                 Positionen = cart.Select(x => new NeueBestellPositionDto
                 {
                     ArtikelId = x.Product.ArtikelId,

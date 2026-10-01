@@ -1,15 +1,14 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudText Typo="Typo.h6">Smart Restaurant — Orbit</MudText>
-    </MudAppBar>
-    <MudDrawer Open="true" Elevation="2" Variant="DrawerVariant.Persistent">
-        <NavMenu />
-    </MudDrawer>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+<div class="site-shell">
+    <header class="top-nav-wrap">
+        <nav class="top-nav" aria-label="Hauptnavigation">
+            <NavLink href="/order" Match="NavLinkMatch.Prefix">Bestellung aufnehmen</NavLink>
+            <NavLink href="/rechnung" Match="NavLinkMatch.Prefix">Rechnung / Bezahlen</NavLink>
+        </nav>
+    </header>
+
+    <main class="app-main">
+        @Body
+    </main>
+</div>
