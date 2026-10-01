@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins("https://localhost:7000", "http://localhost:5000") // Ports vom Blazor-Projekt, anpassen
+        policy.WithOrigins("https://localhost:7102", "http://localhost:5048") // Ports vom Blazor-Projekt, anpassen
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
