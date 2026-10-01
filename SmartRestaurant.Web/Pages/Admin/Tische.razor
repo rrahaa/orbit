@@ -1,0 +1,120 @@
+﻿@page "/admin/tische"
+@inject HttpClient Http
+@using SmartRestaurant.Shared.Dtos
+
+<MudPaper Class="pa-4" Elevation="2">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h4">Tische</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OeffneNeu">
+            Neuer Tisch
+        </MudButton>
+    </MudStack>
+
+    @if (tische is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudTable Items="@tische" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Tischnummer</MudTh>
+                <MudTh>Kapazität</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh Style="width:100px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Tischnummer</MudTd>
+                <MudTd>@context.Kapazitaet Personen</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.TischStatusId == 1 ? Color.Success : Color.Error)" Size="Size.Small">
+                        @(context.TischStatusId == 1 ? "frei" : "besetzt")
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OeffneBearbeiten(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => Loeschen(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private List<TischItem>? tische;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LadeDaten();
+    }
+
+    private async Task LadeDaten()
+    {
+        try
+        {
+            tische = await Http.GetFromJsonAsync<List<TischItem>>("api/tische");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler beim Laden: {ex.Message}", Severity.Error);
+            tische = new();
+        }
+    }
+
+    private async Task OeffneNeu()
+    {
+        var dialog = await DialogService.ShowAsync<TischDialog>("Neuer Tisch");
+        var ergebnis = await dialog.Result;
+
+        if (ergebnis is { Canceled: false })
+            await LadeDaten();
+    }
+
+    private async Task OeffneBearbeiten(TischItem t)
+    {
+        var parameter = new DialogParameters
+        {
+            ["BearbeiteTischId"] = t.TischId,
+            ["Tischnummer"] = t.Tischnummer,
+            ["Kapazitaet"] = t.Kapazitaet
+        };
+        var dialog = await DialogService.ShowAsync<TischDialog>("Tisch bearbeiten", parameter);
+        var ergebnis = await dialog.Result;
+
+        if (ergebnis is { Canceled: false })
+            await LadeDaten();
+    }
+
+    private async Task Loeschen(TischItem t)
+    {
+        try
+        {
+            var antwort = await Http.DeleteAsync($"api/tische/{t.TischId}");
+            if (antwort.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Tisch {t.Tischnummer} gelöscht.", Severity.Success);
+                await LadeDaten();
+            }
+            else
+            {
+                var fehlertext = await antwort.Content.ReadAsStringAsync();
+                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Löschen fehlgeschlagen." : fehlertext, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+        }
+    }
+
+    [Inject] private IDialogService DialogService { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+
+    public class TischItem
+    {
+        public int TischId { get; set; }
+        public int Tischnummer { get; set; }
+        public int Kapazitaet { get; set; }
+        public int TischStatusId { get; set; }
+    }
+}

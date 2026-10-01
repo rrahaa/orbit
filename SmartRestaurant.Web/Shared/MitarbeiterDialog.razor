@@ -1,0 +1,102 @@
+﻿@inject HttpClient Http
+@inject ISnackbar Snackbar
+@using SmartRestaurant.Shared.Dtos
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width:350px">
+            <MudTextField @bind-Value="Name" Label="Name" Required="true" />
+            <MudTextField @bind-Value="Benutzername" Label="Benutzername" Required="true" />
+            <MudTextField @bind-Value="Passwort" Label="@PasswortLabel" InputType="InputType.Password" />
+            <MudSelect T="int" @bind-Value="RolleId" Label="Rolle" Required="true">
+                @foreach (var r in Rollen)
+                {
+                    <MudSelectItem Value="@r.RolleId">@r.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Abbrechen">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Speichern">Speichern</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<RolleOption> Rollen { get; set; } = new();
+    [Parameter] public int? BearbeiteMitarbeiterId { get; set; }
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string Benutzername { get; set; } = "";
+    [Parameter] public int AusgewaehlteRolleId { get; set; }
+
+    private string Passwort { get; set; } = "";
+    private int RolleId { get; set; }
+
+    private string PasswortLabel => BearbeiteMitarbeiterId is null
+        ? "Passwort"
+        : "Neues Passwort (leer lassen = unverändert)";
+
+    protected override void OnInitialized()
+    {
+        RolleId = AusgewaehlteRolleId;
+    }
+
+    private void Abbrechen() => MudDialog.Cancel();
+
+    private async Task Speichern()
+    {
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Benutzername))
+        {
+            Snackbar.Add("Name und Benutzername dürfen nicht leer sein.", Severity.Warning);
+            return;
+        }
+        if (RolleId == 0)
+        {
+            Snackbar.Add("Bitte eine Rolle auswählen.", Severity.Warning);
+            return;
+        }
+        if (BearbeiteMitarbeiterId is null && string.IsNullOrWhiteSpace(Passwort))
+        {
+            Snackbar.Add("Passwort darf beim Anlegen nicht leer sein.", Severity.Warning);
+            return;
+        }
+
+        var dto = new NeuerMitarbeiterDto
+        {
+            Name = Name,
+            Benutzername = Benutzername,
+            Passwort = Passwort,
+            RolleId = RolleId
+        };
+
+        try
+        {
+            HttpResponseMessage antwort;
+            if (BearbeiteMitarbeiterId is int id)
+                antwort = await Http.PutAsJsonAsync($"api/mitarbeiter/{id}", dto);
+            else
+                antwort = await Http.PostAsJsonAsync("api/mitarbeiter", dto);
+
+            if (antwort.IsSuccessStatusCode)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var fehlertext = await antwort.Content.ReadAsStringAsync();
+                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Speichern fehlgeschlagen." : fehlertext, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+        }
+    }
+
+    public class RolleOption
+    {
+        public int RolleId { get; set; }
+        public string Name { get; set; } = "";
+    }
+}
