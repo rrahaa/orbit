@@ -1,0 +1,61 @@
+﻿@inject HttpClient Http
+@inject ISnackbar Snackbar
+@using SmartRestaurant.Shared.Dtos
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width:350px">
+            <MudNumericField @bind-Value="Tischnummer" Label="Tischnummer" Min="1" Required="true" />
+            <MudNumericField @bind-Value="Kapazitaet" Label="Kapazität" Min="2" Max="8" Required="true" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Abbrechen">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Speichern">Speichern</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int? BearbeiteTischId { get; set; }
+    [Parameter] public int Tischnummer { get; set; } = 1;
+    [Parameter] public int Kapazitaet { get; set; } = 2;
+
+    private async Task Abbrechen() => MudDialog.Cancel();
+
+    private void Speichern_Validierung() { }
+
+    private async Task Speichern()
+    {
+        if (Kapazitaet < 2 || Kapazitaet > 8)
+        {
+            Snackbar.Add("Kapazität muss zwischen 2 und 8 liegen.", Severity.Warning);
+            return;
+        }
+
+        var dto = new NeuerTischDto { Tischnummer = Tischnummer, Kapazitaet = Kapazitaet };
+
+        try
+        {
+            HttpResponseMessage antwort;
+            if (BearbeiteTischId is int id)
+                antwort = await Http.PutAsJsonAsync($"api/tische/{id}", dto);
+            else
+                antwort = await Http.PostAsJsonAsync("api/tische", dto);
+
+            if (antwort.IsSuccessStatusCode)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var fehlertext = await antwort.Content.ReadAsStringAsync();
+                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Speichern fehlgeschlagen." : fehlertext, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+        }
+    }
+}
