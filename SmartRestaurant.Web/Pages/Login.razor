@@ -1,0 +1,107 @@
+﻿@page "/login"
+
+@using System.Net.Http.Json
+@using SmartRestaurant.Shared.Dtos
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Login - Smart Gastro</PageTitle>
+
+<div class="login-container">
+
+    <div class="login-card">
+
+        <h1>Smart Gastro</h1>
+        <h2>Anmeldung</h2>
+
+        <EditForm Model="login" OnValidSubmit="Login">
+
+            <div class="form-group">
+                <label>Benutzername</label>
+                <InputText class="form-control"
+                           @bind-Value="login.Benutzername" />
+            </div>
+
+            <div class="form-group">
+                <label>Passwort</label>
+                <InputText class="form-control"
+                           type="password"
+                           @bind-Value="login.Passwort" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(fehler))
+            {
+                <div class="fehler">
+                    @fehler
+                </div>
+            }
+
+            <button type="submit" class="login-button">
+                Anmelden
+            </button>
+
+        </EditForm>
+
+    </div>
+
+</div>
+
+@code {
+
+    private LoginDto login = new();
+    private string fehler = string.Empty;
+
+    private async Task Login()
+    {
+        fehler = string.Empty;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/login", login);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                fehler = "Benutzername oder Passwort ist falsch.";
+                return;
+            }
+
+            var benutzer =
+                await response.Content.ReadFromJsonAsync<LoginAntwortDto>();
+
+            if (benutzer == null)
+            {
+                fehler = "Fehler beim Anmelden.";
+                return;
+            }
+
+            Weiterleiten(benutzer.Rolle);
+        }
+        catch
+        {
+            fehler = "Verbindung zum Server fehlgeschlagen.";
+        }
+    }
+
+    private void Weiterleiten(string rolle)
+    {
+        switch (rolle.ToLower())
+        {
+            case "service":
+                Navigation.NavigateTo("/service");
+                break;
+
+            case "bar":
+                Navigation.NavigateTo("/bar");
+                break;
+
+            case "administration":
+                Navigation.NavigateTo("/admin");
+                break;
+
+            default:
+                Navigation.NavigateTo("/");
+                break;
+        }
+    }
+}
