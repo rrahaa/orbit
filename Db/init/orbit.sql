@@ -164,12 +164,13 @@ CREATE TABLE `mitarbeiter` (
 
 --
 -- Daten für Tabelle `mitarbeiter`
+-- Test-Passwörter: anna.service = service123, max.bar = bar123, tom.admin = admin123
 --
 
 INSERT INTO `mitarbeiter` (`mitarbeiter_id`, `rolle_id`, `name`, `benutzername`, `passwort_hash`, `ist_aktiv`) VALUES
-                                                                                                                   (1, 1, 'Anna Müller', 'anna.service', 'TEST_HASH_001', 1),
-                                                                                                                   (2, 2, 'Max Schmidt', 'max.bar', 'TEST_HASH_002', 1),
-                                                                                                                   (4, 4, 'Tom Fischer', 'tom.admin', 'TEST_HASH_004', 1);
+                                                                                                                   (1, 1, 'Anna Müller', 'anna.service', '$2a$11$GNytFZSqZVPkFQLpduwhE.3c98pXB9tTkg2DDHHIYO/cepvU7LHBy', 1),
+                                                                                                                   (2, 2, 'Max Schmidt', 'max.bar', '$2a$11$BfLDTPci6eahJ2a4KlP9BujYZaJFCby2Rl7FGN3WQSd9k4b7LvtTO', 1),
+                                                                                                                   (4, 4, 'Tom Fischer', 'tom.admin', '$2a$11$aPbCcphPYBERZH82UwDkVeHoqSPI/vpbyi/2kGfGggA2Bqo2opi7u', 1);
 
 -- --------------------------------------------------------
 

@@ -1,60 +1,91 @@
-﻿@page "/login"
-
-@using System.Net.Http.Json
-@using SmartRestaurant.Shared.Dtos
+@page "/login"
+@layout LoginLayout
+@attribute [AllowAnonymous]
 
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject AnmeldeStatusProvider AnmeldeStatus
 
 <PageTitle>Login - Smart Gastro</PageTitle>
 
-<div class="login-container">
+<div class="login-card">
 
-    <div class="login-card">
+    <h1>Smart Gastro</h1>
+    <h2>Anmeldung</h2>
 
-        <h1>Smart Gastro</h1>
-        <h2>Anmeldung</h2>
+    <EditForm Model="login" OnValidSubmit="Anmelden">
 
-        <EditForm Model="login" OnValidSubmit="Login">
+        <div class="form-group">
+            <label for="benutzername">Benutzername</label>
+            <InputText id="benutzername"
+                       class="form-control"
+                       autocomplete="username"
+                       @bind-Value="login.Benutzername" />
+        </div>
 
-            <div class="form-group">
-                <label>Benutzername</label>
-                <InputText class="form-control"
-                           @bind-Value="login.Benutzername" />
+        <div class="form-group">
+            <label for="passwort">Passwort</label>
+            <InputText id="passwort"
+                       class="form-control"
+                       type="password"
+                       autocomplete="current-password"
+                       @bind-Value="login.Passwort" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(fehler))
+        {
+            <div class="fehler">
+                @fehler
             </div>
+        }
 
-            <div class="form-group">
-                <label>Passwort</label>
-                <InputText class="form-control"
-                           type="password"
-                           @bind-Value="login.Passwort" />
-            </div>
+        <button type="submit" class="login-button" disabled="@laedt">
+            @(laedt ? "Bitte warten..." : "Anmelden")
+        </button>
 
-            @if (!string.IsNullOrEmpty(fehler))
-            {
-                <div class="fehler">
-                    @fehler
-                </div>
-            }
-
-            <button type="submit" class="login-button">
-                Anmelden
-            </button>
-
-        </EditForm>
-
-    </div>
+    </EditForm>
 
 </div>
 
 @code {
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private LoginDto login = new();
     private string fehler = string.Empty;
+    private bool laedt;
 
-    private async Task Login()
+    protected override async Task OnInitializedAsync()
+    {
+        // Bereits angemeldet -> direkt auf die eigene Seite
+        var benutzer = (await AuthState).User;
+        if (benutzer.Identity?.IsAuthenticated == true)
+        {
+            var ziel = Rollen.Startseite(benutzer.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value);
+
+            if (ziel == "/login")
+            {
+                // Unbekannte Rolle -> Sitzung verwerfen, sonst Weiterleitungsschleife
+                await AnmeldeStatus.AbmeldenAsync();
+                return;
+            }
+
+            Navigation.NavigateTo(ziel, replace: true);
+        }
+    }
+
+    private async Task Anmelden()
     {
         fehler = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(login.Benutzername) || string.IsNullOrWhiteSpace(login.Passwort))
+        {
+            fehler = "Bitte Benutzername und Passwort eingeben.";
+            return;
+        }
+
+        laedt = true;
 
         try
         {
@@ -75,33 +106,28 @@
                 return;
             }
 
-            Weiterleiten(benutzer.Rolle);
+            var ziel = Rollen.Startseite(benutzer.Rolle);
+
+            if (ziel == "/login")
+            {
+                fehler = $"Für die Rolle \"{benutzer.Rolle}\" gibt es keine Seite.";
+                return;
+            }
+
+            await AnmeldeStatus.AnmeldenAsync(benutzer);
+            Navigation.NavigateTo(ziel, replace: true);
         }
-        catch
+        catch (HttpRequestException)
         {
             fehler = "Verbindung zum Server fehlgeschlagen.";
         }
-    }
-
-    private void Weiterleiten(string rolle)
-    {
-        switch (rolle.ToLower())
+        catch (Exception)
         {
-            case "service":
-                Navigation.NavigateTo("/service");
-                break;
-
-            case "bar":
-                Navigation.NavigateTo("/bar");
-                break;
-
-            case "administration":
-                Navigation.NavigateTo("/admin");
-                break;
-
-            default:
-                Navigation.NavigateTo("/");
-                break;
+            fehler = "Fehler beim Anmelden.";
+        }
+        finally
+        {
+            laedt = false;
         }
     }
 }

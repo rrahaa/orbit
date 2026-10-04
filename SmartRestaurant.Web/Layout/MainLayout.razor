@@ -1,15 +1,36 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject AnmeldeStatusProvider AnmeldeStatus
+@inject NavigationManager Navigation
 
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudText Typo="Typo.h6">Smart Restaurant — Orbit</MudText>
-    </MudAppBar>
-    <MudDrawer Open="true" Elevation="2" Variant="DrawerVariant.Persistent">
+<div class="page">
+    <div class="sidebar">
         <NavMenu />
-    </MudDrawer>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <AuthorizeView>
+                <span class="benutzer">
+                    @context.User.Identity?.Name
+                    <small class="text-muted">(@RolleVon(context.User))</small>
+                </span>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Abmelden">Abmelden</button>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4">
             @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+        </article>
+    </main>
+</div>
+
+@code {
+    private static string? RolleVon(System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+    private async Task Abmelden()
+    {
+        await AnmeldeStatus.AbmeldenAsync();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}

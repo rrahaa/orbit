@@ -8,6 +8,8 @@
 @using Microsoft.JSInterop
 @using SmartRestaurant.Web
 @using SmartRestaurant.Web.Layout
-@using MudBlazor
-@using MudBlazor.Services
-@using SmartRestaurant.Web.Shared
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SmartRestaurant.Shared.Dtos
+@using SmartRestaurant.Web.Auth
+@attribute [Authorize]
