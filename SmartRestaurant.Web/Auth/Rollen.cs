@@ -12,7 +12,7 @@ public static class Rollen
     {
         Service => "/service",
         Bar => "/bar",
-        Administration => "/admin",
+        Administration => "/admin/artikel",
         _ => "/login"
     };
 }

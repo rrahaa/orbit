@@ -3,7 +3,7 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<Router AppAssembly="@typeof(App).Assembly">
+<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         @* Jede Seite ist per [Authorize] (siehe _Imports.razor) gesperrt, außer sie hat [AllowAnonymous] *@
         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
@@ -23,10 +23,4 @@
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
-    <NotFound>
-        <PageTitle>Nicht gefunden</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Seite nicht gefunden.</p>
-        </LayoutView>
-    </NotFound>
 </Router>

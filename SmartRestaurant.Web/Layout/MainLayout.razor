@@ -2,27 +2,29 @@
 @inject AnmeldeStatusProvider AnmeldeStatus
 @inject NavigationManager Navigation
 
-<div class="page">
-    <div class="sidebar">
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h6">Smart Restaurant — Orbit</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <MudText Class="mr-4">
+                @context.User.Identity?.Name (@RolleVon(context.User))
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Inherit"
+                       StartIcon="@Icons.Material.Filled.Logout" OnClick="Abmelden">
+                Abmelden
+            </MudButton>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudDrawer Open="true" Elevation="2" Variant="DrawerVariant.Persistent">
         <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <AuthorizeView>
-                <span class="benutzer">
-                    @context.User.Identity?.Name
-                    <small class="text-muted">(@RolleVon(context.User))</small>
-                </span>
-                <button class="btn btn-outline-secondary btn-sm" @onclick="Abmelden">Abmelden</button>
-            </AuthorizeView>
-        </div>
-
-        <article class="content px-4">
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 @code {
     private static string? RolleVon(System.Security.Claims.ClaimsPrincipal user) =>
