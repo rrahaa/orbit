@@ -1,12 +1,6 @@
-﻿.login-container {
-    min-height: 80vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
 .login-card {
-    width: 380px;
+    width: 100%;
+    max-width: 380px;
     padding: 35px;
     border-radius: 12px;
     background-color: white;
@@ -34,7 +28,8 @@
         font-weight: 600;
     }
 
-.form-control {
+/* InputText ist eine Kind-Komponente -> ::deep, sonst greift das Scoped-CSS nicht */
+::deep .form-control {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -52,8 +47,13 @@
     cursor: pointer;
 }
 
-    .login-button:hover {
+    .login-button:hover:not(:disabled) {
         background-color: #157347;
+    }
+
+    .login-button:disabled {
+        opacity: 0.7;
+        cursor: default;
     }
 
 .fehler {

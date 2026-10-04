@@ -34,8 +34,16 @@ public class LoginController : ControllerBase
             return Unauthorized("Dieser Benutzer ist deaktiviert.");
         }
 
-        bool passwortRichtig =
-            BCrypt.Net.BCrypt.Verify(dto.Passwort, mitarbeiter.PasswortHash);
+        bool passwortRichtig;
+        try
+        {
+            passwortRichtig = BCrypt.Net.BCrypt.Verify(dto.Passwort, mitarbeiter.PasswortHash);
+        }
+        catch (BCrypt.Net.SaltParseException)
+        {
+            // Kein gültiger BCrypt-Hash in der Datenbank -> Login ablehnen statt 500
+            passwortRichtig = false;
+        }
 
         if (!passwortRichtig)
         {

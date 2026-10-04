@@ -1,0 +1,15 @@
+@inject NavigationManager Navigation
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    // Angemeldet, aber falsche Rolle -> zurück auf die eigene Seite
+    protected override async Task OnInitializedAsync()
+    {
+        var benutzer = (await AuthState).User;
+        var rolle = benutzer.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+        Navigation.NavigateTo(Rollen.Startseite(rolle), replace: true);
+    }
+}

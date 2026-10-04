@@ -1,4 +1,7 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject AnmeldeStatusProvider AnmeldeStatus
+@inject NavigationManager Navigation
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -6,7 +9,13 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <span class="benutzer">
+                    @context.User.Identity?.Name
+                    <small class="text-muted">(@RolleVon(context.User))</small>
+                </span>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Abmelden">Abmelden</button>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">
@@ -14,3 +23,14 @@
         </article>
     </main>
 </div>
+
+@code {
+    private static string? RolleVon(System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+    private async Task Abmelden()
+    {
+        await AnmeldeStatus.AbmeldenAsync();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}

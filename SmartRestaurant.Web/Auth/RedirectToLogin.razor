@@ -1,0 +1,9 @@
+@inject NavigationManager Navigation
+
+@code {
+    // Wird vom AuthorizeRouteView angezeigt, wenn niemand angemeldet ist
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}
