@@ -13,7 +13,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // SmartRestaurant.Api HTTPS profile from Properties/launchSettings.json
 builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7062/")
+    BaseAddress = new Uri("https://localhost:5274/")
 });
 
 // Anmeldung / Rollen
