@@ -1,8 +1,14 @@
+
 @page "/bar"
-@attribute [Authorize(Roles = Rollen.Bar)]
+@attribute [Authorize(Roles = $"{Rollen.Bar},{Rollen.Administration}")]
+
+@inject NavigationManager Navigation
 
 <PageTitle>Bar - Smart Gastro</PageTitle>
 
-<h1>Bar</h1>
-
-<p>Offene Bestellungen, die an der Bar zubereitet werden.</p>
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/rechnung", replace: true);
+    }
+}

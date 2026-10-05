@@ -1,85 +1,197 @@
 ﻿@inject HttpClient Http
 @inject ISnackbar Snackbar
+@using System.Net.Http.Json
 @using SmartRestaurant.Shared.Dtos
 
 <MudDialog>
-    <DialogContent>
-        <MudStack Spacing="3" Style="min-width:350px">
-            <MudTextField @bind-Value="Name" Label="Name" Required="true" />
-            <MudNumericField @bind-Value="Preis" Label="Preis" Format="F2" Min="0" Required="true" Adornment="Adornment.End" AdornmentText="€" />
-            <MudSelect T="int" @bind-Value="KategorieId" Label="Kategorie" Required="true">
-                @foreach (var k in Kategorien)
-                {
-                    <MudSelectItem Value="@k.KategorieId">@k.Name</MudSelectItem>
-                }
-            </MudSelect>
-        </MudStack>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Abbrechen">Abbrechen</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Speichern">Speichern</MudButton>
-    </DialogActions>
+    
+<DialogContent>
+
+    <MudStack Spacing="3" Style="min-width:350px">
+
+        <MudTextField @bind-Value="Name"
+                      Label="Name"
+                      Required="true"
+                      Variant="Variant.Outlined" />
+
+        <MudNumericField @bind-Value="Preis"
+                         Label="Preis"
+                         Format="F2"
+                         Min="0"
+                         Required="true"
+                         Variant="Variant.Outlined"
+                         Adornment="Adornment.End"
+                         AdornmentText="€" />
+
+        <MudSelect T="int"
+                   @bind-Value="KategorieId"
+                   Label="Kategorie"
+                   Required="true"
+                   Variant="Variant.Outlined">
+
+            @foreach (var k in Kategorien)
+            {
+                <MudSelectItem Value="@k.KategorieId">
+                    @k.Name
+                </MudSelectItem>
+            }
+
+        </MudSelect>
+
+    </MudStack>
+
+</DialogContent>
+
+<DialogActions>
+
+    <MudButton OnClick="Abbrechen">
+        Abbrechen
+    </MudButton>
+
+    <MudButton Color="Color.Primary"
+               Variant="Variant.Filled"
+               OnClick="Speichern">
+
+        Speichern
+
+    </MudButton>
+
+</DialogActions>
+
+
 </MudDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
-    [Parameter] public List<KategorieOption> Kategorien { get; set; } = new();
-    [Parameter] public int? BearbeiteArtikelId { get; set; }
-    [Parameter] public string Name { get; set; } = "";
-    [Parameter] public decimal Preis { get; set; }
-    [Parameter] public int AusgewaehlteKategorieId { get; set; }
+    
+[CascadingParameter]
+private IMudDialogInstance MudDialog { get; set; } = null!;
 
-    private int KategorieId { get; set; }
+[Parameter]
+public List<KategorieOption> Kategorien { get; set; } = new();
 
-    protected override void OnInitialized()
+[Parameter]
+public int? BearbeiteArtikelId { get; set; }
+
+[Parameter]
+public string Name { get; set; } = "";
+
+[Parameter]
+public decimal Preis { get; set; }
+
+[Parameter]
+public int AusgewaehlteKategorieId { get; set; }
+
+private int KategorieId { get; set; }
+
+protected override void OnInitialized()
+{
+    KategorieId = AusgewaehlteKategorieId;
+}
+
+private void Abbrechen()
+{
+    MudDialog.Cancel();
+}
+
+private async Task Speichern()
+{
+    if (string.IsNullOrWhiteSpace(Name))
     {
-        KategorieId = AusgewaehlteKategorieId;
+        Snackbar.Add(
+            "Bitte einen Artikelnamen eingeben.",
+            Severity.Warning);
+
+        return;
     }
 
-    private void Abbrechen() => MudDialog.Cancel();
-
-    private async Task Speichern()
+    if (KategorieId == 0)
     {
-        if (string.IsNullOrWhiteSpace(Name))
+        Snackbar.Add(
+            "Bitte eine Kategorie auswählen.",
+            Severity.Warning);
+
+        return;
+    }
+
+    if (Preis < 0)
+    {
+        Snackbar.Add(
+            "Der Preis darf nicht negativ sein.",
+            Severity.Warning);
+
+        return;
+    }
+
+    var dto = new NeuerArtikelDto
+    {
+        Name = Name.Trim(),
+        Preis = Preis,
+        KategorieId = KategorieId
+    };
+
+    try
+    {
+        HttpResponseMessage antwort;
+
+        if (BearbeiteArtikelId is int id)
         {
-            Snackbar.Add("Name darf nicht leer sein.", Severity.Warning);
+            antwort =
+                await Http.PutAsJsonAsync(
+                    $"api/artikel/{id}",
+                    dto);
+        }
+        else
+        {
+            antwort =
+                await Http.PostAsJsonAsync(
+                    "api/artikel",
+                    dto);
+        }
+
+        if (antwort.IsSuccessStatusCode)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
             return;
         }
-        if (KategorieId == 0)
+
+        var fehlertext =
+            await antwort.Content.ReadAsStringAsync();
+
+        if (antwort.StatusCode ==
+            System.Net.HttpStatusCode.Conflict)
         {
-            Snackbar.Add("Bitte eine Kategorie auswählen.", Severity.Warning);
-            return;
+            Snackbar.Add(
+                "Ein Artikel mit diesem Namen existiert bereits in dieser Kategorie.",
+                Severity.Warning);
         }
-
-        var dto = new NeuerArtikelDto { Name = Name, Preis = Preis, KategorieId = KategorieId };
-
-        try
+        else
         {
-            HttpResponseMessage antwort;
-            if (BearbeiteArtikelId is int id)
-                antwort = await Http.PutAsJsonAsync($"api/artikel/{id}", dto);
-            else
-                antwort = await Http.PostAsJsonAsync("api/artikel", dto);
-
-            if (antwort.IsSuccessStatusCode)
-            {
-                MudDialog.Close(DialogResult.Ok(true));
-            }
-            else
-            {
-                var fehlertext = await antwort.Content.ReadAsStringAsync();
-                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Speichern fehlgeschlagen." : fehlertext, Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+            Snackbar.Add(
+                string.IsNullOrWhiteSpace(fehlertext)
+                    ? "Artikel konnte nicht gespeichert werden."
+                    : fehlertext,
+                Severity.Error);
         }
     }
-
-    public class KategorieOption
+    catch (HttpRequestException)
     {
-        public int KategorieId { get; set; }
-        public string Name { get; set; } = "";
+        Snackbar.Add(
+            "Der Server konnte nicht erreicht werden.",
+            Severity.Error);
     }
+    catch (Exception ex)
+    {
+        Snackbar.Add(
+            $"Fehler beim Speichern: {ex.Message}",
+            Severity.Error);
+    }
+}
+
+public class KategorieOption
+{
+    public int KategorieId { get; set; }
+
+    public string Name { get; set; } = "";
+}
+
 }
