@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using SmartRestaurant.Api.Data;
+using SmartRestaurant.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var cs = builder.Configuration.GetConnectionString("Default")!;
 builder.Services.AddDbContext<AppDbContext>(o => o.UseMySql(cs, ServerVersion.AutoDetect(cs)));
 builder.Services.AddControllers();
+builder.Services.AddSingleton<StatusLogService>();
 
 builder.Services.AddCors(options =>
 {
