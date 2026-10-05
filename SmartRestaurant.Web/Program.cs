@@ -1,19 +1,18 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using MudBlazor.Services;
 using SmartRestaurant.Web;
 using SmartRestaurant.Web.Auth;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddMudServices();
-
-builder.Services.AddScoped(sp => new HttpClient
+// SmartRestaurant.Api HTTPS profile from Properties/launchSettings.json
+builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:5274")
+    BaseAddress = new Uri("https://localhost:7062/")
 });
 
 // Anmeldung / Rollen
