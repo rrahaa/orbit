@@ -18,12 +18,13 @@ public class ArtikelController : ControllerBase
         var liste = await _db.Artikel
             .Include(a => a.Kategorie)
             .Select(a => new ArtikelDto
-            {
-                ArtikelId = (int)a.ArtikelId,
-                Name = a.Name,
-                Preis = a.Preis,
-                Kategorie = a.Kategorie.Kategoriename
-            })
+{
+    ArtikelId = (int)a.ArtikelId,
+    Name = a.Name,
+    Preis = a.Preis,
+    KategorieId = (int)a.KategorieId,
+    Kategorie = a.Kategorie.Kategoriename
+})
             .ToListAsync();
 
         return Ok(liste);
