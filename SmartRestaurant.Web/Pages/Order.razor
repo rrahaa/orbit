@@ -1,5 +1,7 @@
 @page "/order"
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
+@using System.Security.Claims
 
 <PageTitle>Bestellung | Smart Restaurant</PageTitle>
 
@@ -12,7 +14,7 @@
 
         <div class="login-assignment">
             <span class="login-label">Mitarbeiter</span>
-            <strong>Zuordnung später über Login</strong>
+            <strong>@(mitarbeiterName ?? "Unbekannt")</strong>
         </div>
     </header>
 
@@ -183,7 +185,8 @@
     private List<ArtikelDto> products = new();
     private List<TischUebersichtDto> tables = new();
     private TischUebersichtDto? selectedTable;
-    private const int FallbackEmployeeId = 1; // TODO: später durch Mitarbeiter-ID aus dem Login ersetzen.
+    private int? mitarbeiterId;
+    private string? mitarbeiterName;
     private string selectedCategory = string.Empty;
     private string searchText = string.Empty;
     private string? errorMessage;
@@ -209,6 +212,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var idClaim = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        mitarbeiterId = int.TryParse(idClaim, out var id) ? id : null;
+        mitarbeiterName = state.User.FindFirst(ClaimTypes.Name)?.Value;
+
         await LoadData();
     }
 
@@ -280,6 +288,12 @@
         if (selectedTable is null || cart.Count == 0)
             return;
 
+        if (mitarbeiterId is null)
+        {
+            errorMessage = "Kein angemeldeter Mitarbeiter gefunden. Bitte erneut anmelden.";
+            return;
+        }
+
         isSubmitting = true;
         errorMessage = null;
         successMessage = null;
@@ -289,7 +303,7 @@
             var dto = new NeueBestellungDto
             {
                 TischId = selectedTable.TischId,
-                MitarbeiterId = FallbackEmployeeId,
+                MitarbeiterId = mitarbeiterId.Value,
                 Positionen = cart.Select(x => new NeueBestellPositionDto
                 {
                     ArtikelId = x.Product.ArtikelId,
@@ -310,7 +324,6 @@
             cart.Clear();
             successMessage = $"Bestellung für Tisch {tableNumber} wurde erfolgreich gespeichert.";
 
-            // Reload tables so the selected table immediately changes to "besetzt".
             tables = await Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische") ?? new();
             selectedTable = tables.FirstOrDefault(x => x.TischId == selectedTable.TischId);
         }

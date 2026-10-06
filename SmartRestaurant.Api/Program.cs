@@ -4,14 +4,6 @@ using SmartRestaurant.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-<<<<<<< HEAD
-var cs = builder.Configuration.GetConnectionString("Default")!;
-builder.Services.AddDbContext<AppDbContext>(o => o.UseMySql(cs, ServerVersion.AutoDetect(cs)));
-builder.Services.AddControllers();
-builder.Services.AddSingleton<StatusLogService>();
-
-=======
->>>>>>> origin/main
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -23,12 +15,13 @@ builder.Services.AddCors(options =>
 });
 
 var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Connection string 'Default' was not found.");
+                       ?? throw new InvalidOperationException("Connection string 'Default' was not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 builder.Services.AddControllers();
+builder.Services.AddSingleton<StatusLogService>();
 
 var app = builder.Build();
 
