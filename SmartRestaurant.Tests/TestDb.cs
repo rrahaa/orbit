@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using SmartRestaurant.Api.Data;
 using SmartRestaurant.Api.Models;
+using SmartRestaurant.Api.Services;
 
 namespace SmartRestaurant.Tests;
 
@@ -19,6 +22,23 @@ public static class TestDb
         var db = new AppDbContext(options);
         Seed(db);
         return db;
+    }
+
+    // StatusLogService schreibt in eine Datei -> im Test in einen eigenen temporären Ordner.
+    public static StatusLogService CreateStatusLog()
+    {
+        var ordner = Path.Combine(Path.GetTempPath(), "orbit-tests", Guid.NewGuid().ToString());
+        return new StatusLogService(new TestEnvironment { ContentRootPath = ordner });
+    }
+
+    private class TestEnvironment : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "SmartRestaurant.Tests";
+        public string EnvironmentName { get; set; } = "Test";
+        public string ContentRootPath { get; set; } = "";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = "";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private static void Seed(AppDbContext db)
