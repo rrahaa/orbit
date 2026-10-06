@@ -1,3 +1,4 @@
+
 namespace SmartRestaurant.Web.Auth;
 
 // Rollennamen wie in der Tabelle `rolle` (Groß-/Kleinschreibung beachten)
@@ -10,8 +11,8 @@ public static class Rollen
     // Startseite, auf die ein Benutzer nach dem Login geleitet wird
     public static string Startseite(string? rolle) => rolle switch
     {
-        Service => "/service",
-        Bar => "/bar",
+        Service => "/order",
+        Bar => "/rechnung",
         Administration => "/admin/artikel",
         _ => "/login"
     };

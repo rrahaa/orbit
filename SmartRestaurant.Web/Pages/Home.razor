@@ -1,4 +1,11 @@
 @page "/"
+@inject NavigationManager Navigation
 
-@* Keine eigene Startseite: jeder Benutzer landet auf der Seite seiner Rolle *@
-<RedirectToStartseite />
+<PageTitle>Smart Restaurant</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/order", replace: true);
+    }
+}

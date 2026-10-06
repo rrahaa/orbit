@@ -1,8 +1,14 @@
+
 @page "/service"
-@attribute [Authorize(Roles = Rollen.Service)]
+@attribute [Authorize(Roles = $"{Rollen.Service},{Rollen.Administration}")]
+
+@inject NavigationManager Navigation
 
 <PageTitle>Service - Smart Gastro</PageTitle>
 
-<h1>Service</h1>
-
-<p>Tischübersicht und Bestellungen aufnehmen.</p>
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/order", replace: true);
+    }
+}

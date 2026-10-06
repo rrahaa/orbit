@@ -481,5 +481,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
+<<<<<<< HEAD
 StatusLogs/
 .aider*
+=======
+.aider*
+>>>>>>> origin/main

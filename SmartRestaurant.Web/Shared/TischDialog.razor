@@ -5,57 +5,130 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3" Style="min-width:350px">
-            <MudNumericField @bind-Value="Tischnummer" Label="Tischnummer" Min="1" Required="true" />
-            <MudNumericField @bind-Value="Kapazitaet" Label="Kapazität" Min="2" Max="8" Required="true" />
+
+            <MudNumericField
+                @bind-Value="Tischnummer"
+                Label="Tischnummer"
+                Min="1"
+                Required="true" />
+
+            <MudNumericField
+                @bind-Value="Kapazitaet"
+                Label="Kapazität"
+                Min="2"
+                Max="8"
+                Required="true" />
+
         </MudStack>
     </DialogContent>
+
     <DialogActions>
-        <MudButton OnClick="Abbrechen">Abbrechen</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Speichern">Speichern</MudButton>
+        <MudButton OnClick="Abbrechen">
+            Abbrechen
+        </MudButton>
+
+        <MudButton
+            Color="Color.Primary"
+            Variant="Variant.Filled"
+            OnClick="Speichern">
+            Speichern
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
-    [Parameter] public int? BearbeiteTischId { get; set; }
-    [Parameter] public int Tischnummer { get; set; } = 1;
-    [Parameter] public int Kapazitaet { get; set; } = 2;
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
 
-    private async Task Abbrechen() => MudDialog.Cancel();
+    [Parameter]
+    public int? BearbeiteTischId { get; set; }
 
-    private void Speichern_Validierung() { }
+    [Parameter]
+    public int Tischnummer { get; set; } = 1;
+
+    [Parameter]
+    public int Kapazitaet { get; set; } = 2;
+
+    private void Abbrechen()
+    {
+        MudDialog.Cancel();
+    }
 
     private async Task Speichern()
     {
-        if (Kapazitaet < 2 || Kapazitaet > 8)
+        if (Tischnummer <= 0)
         {
-            Snackbar.Add("Kapazität muss zwischen 2 und 8 liegen.", Severity.Warning);
+            Snackbar.Add(
+                "Die Tischnummer muss größer als 0 sein.",
+                Severity.Warning);
+
             return;
         }
 
-        var dto = new NeuerTischDto { Tischnummer = Tischnummer, Kapazitaet = Kapazitaet };
+        if (Kapazitaet < 2 || Kapazitaet > 8)
+        {
+            Snackbar.Add(
+                "Die Kapazität muss zwischen 2 und 8 Personen liegen.",
+                Severity.Warning);
+
+            return;
+        }
+
+        var dto = new NeuerTischDto
+        {
+            Tischnummer = Tischnummer,
+            Kapazitaet = Kapazitaet
+        };
 
         try
         {
             HttpResponseMessage antwort;
+
             if (BearbeiteTischId is int id)
-                antwort = await Http.PutAsJsonAsync($"api/tische/{id}", dto);
+            {
+                antwort = await Http.PutAsJsonAsync(
+                    $"api/tische/{id}",
+                    dto);
+            }
             else
-                antwort = await Http.PostAsJsonAsync("api/tische", dto);
+            {
+                antwort = await Http.PostAsJsonAsync(
+                    "api/tische",
+                    dto);
+            }
 
             if (antwort.IsSuccessStatusCode)
             {
                 MudDialog.Close(DialogResult.Ok(true));
+                return;
             }
-            else
+
+            var fehlertext =
+                await antwort.Content.ReadAsStringAsync();
+
+            if (antwort.StatusCode ==
+                System.Net.HttpStatusCode.Conflict)
             {
-                var fehlertext = await antwort.Content.ReadAsStringAsync();
-                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Speichern fehlgeschlagen." : fehlertext, Severity.Error);
+                Snackbar.Add(
+                    string.IsNullOrWhiteSpace(fehlertext)
+                        ? "Diese Tischnummer ist bereits vergeben."
+                        : fehlertext,
+                    Severity.Warning);
+
+                return;
             }
+
+            Snackbar.Add(
+                string.IsNullOrWhiteSpace(fehlertext)
+                    ? "Der Tisch konnte nicht gespeichert werden."
+                    : fehlertext,
+                Severity.Error);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+            Snackbar.Add(
+                $"Fehler beim Speichern: {ex.Message}",
+                Severity.Error);
         }
     }
 }

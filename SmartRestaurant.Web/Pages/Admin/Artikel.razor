@@ -1,116 +1,294 @@
 ﻿@page "/admin/artikel"
 @inject HttpClient Http
+@using System.Net.Http.Json
 @using SmartRestaurant.Shared.Dtos
 
+<PageTitle>Artikel - Administration</PageTitle>
+
 <MudPaper Class="pa-4" Elevation="2">
-    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudText Typo="Typo.h4">Artikel</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OeffneNeu">
+
+<MudStack Row="true"
+          Justify="Justify.SpaceBetween"
+          AlignItems="AlignItems.Center"
+          Class="mb-4">
+
+    <MudText Typo="Typo.h4">
+        Artikel
+    </MudText>
+
+    <MudStack Row="true" Spacing="2">
+
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Category"
+                   OnClick="OeffneNeueKategorie">
+
+            Neue Kategorie
+        </MudButton>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OeffneNeu">
+
             Neuer Artikel
         </MudButton>
+
     </MudStack>
 
-    @if (artikel is null)
-    {
+</MudStack>
+
+@if (fehler is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        @fehler
+    </MudAlert>
+}
+
+@if (artikel is null)
+{
+    <MudStack AlignItems="AlignItems.Center" Class="pa-6">
         <MudProgressCircular Indeterminate="true" />
-    }
-    else
-    {
-        <MudTable Items="@artikel" Hover="true" Dense="true" Striped="true">
-            <HeaderContent>
-                <MudTh>Name</MudTh>
-                <MudTh>Preis</MudTh>
-                <MudTh>Kategorie</MudTh>
-                <MudTh Style="width:100px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Name</MudTd>
-                <MudTd>@context.Preis.ToString("0.00") €</MudTd>
-                <MudTd>@context.Kategorie</MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OeffneBearbeiten(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => Loeschen(context))" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
+        <MudText Class="mt-2">Artikel werden geladen...</MudText>
+    </MudStack>
+}
+else if (artikel.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        Es sind noch keine Artikel vorhanden.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="@artikel"
+              Hover="true"
+              Dense="true"
+              Striped="true">
+
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Preis</MudTh>
+            <MudTh>Kategorie</MudTh>
+            <MudTh Style="width:100px"></MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                @context.Name
+            </MudTd>
+
+            <MudTd DataLabel="Preis">
+                @context.Preis.ToString("0.00") €
+            </MudTd>
+
+            <MudTd DataLabel="Kategorie">
+                @context.Kategorie
+            </MudTd>
+
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small"
+                               OnClick="@(() => OeffneBearbeiten(context))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               OnClick="@(() => Loeschen(context))" />
+            </MudTd>
+        </RowTemplate>
+
+    </MudTable>
+}
+
 </MudPaper>
 
 @code {
-    private List<ArtikelDto>? artikel;
-    private List<ArtikelDialog.KategorieOption> kategorien = new();
 
-    protected override async Task OnInitializedAsync()
+private List<ArtikelDto>? artikel;
+private List<ArtikelDialog.KategorieOption> kategorien = new();
+
+private string? fehler;
+
+protected override async Task OnInitializedAsync()
+{
+    await LadeDaten();
+}
+
+private async Task LadeDaten()
+{
+    fehler = null;
+
+    try
+    {
+        var artikelAntwort =
+            await Http.GetAsync("api/artikel");
+
+        if (!artikelAntwort.IsSuccessStatusCode)
+        {
+            var text = await artikelAntwort.Content.ReadAsStringAsync();
+
+            fehler = string.IsNullOrWhiteSpace(text)
+                ? $"Artikel konnten nicht geladen werden. HTTP {(int)artikelAntwort.StatusCode}."
+                : text;
+
+            artikel = new();
+            return;
+        }
+
+        artikel =
+            await artikelAntwort.Content.ReadFromJsonAsync<List<ArtikelDto>>()
+            ?? new();
+
+        var kategorienAntwort =
+            await Http.GetAsync("api/kategorien");
+
+        if (kategorienAntwort.IsSuccessStatusCode)
+        {
+            kategorien =
+                await kategorienAntwort.Content.ReadFromJsonAsync<List<ArtikelDialog.KategorieOption>>()
+                ?? new();
+        }
+        else
+        {
+            kategorien = new();
+
+            var text = await kategorienAntwort.Content.ReadAsStringAsync();
+
+            Snackbar.Add(
+                string.IsNullOrWhiteSpace(text)
+                    ? "Kategorien konnten nicht geladen werden."
+                    : text,
+                Severity.Warning);
+        }
+    }
+    catch (HttpRequestException)
+    {
+        artikel = new();
+        fehler =
+            "Der Server konnte nicht erreicht werden. Bitte prüfe, ob SmartRestaurant.Api läuft.";
+    }
+    catch (Exception ex)
+    {
+        artikel = new();
+        fehler = $"Fehler beim Laden der Artikel: {ex.Message}";
+    }
+}
+
+private async Task OeffneNeu()
+{
+    if (kategorien.Count == 0)
+    {
+        Snackbar.Add(
+            "Bitte zuerst mindestens eine Kategorie anlegen.",
+            Severity.Warning);
+
+        return;
+    }
+
+    var parameter = new DialogParameters
+    {
+        ["Kategorien"] = kategorien
+    };
+
+    var dialog =
+        await DialogService.ShowAsync<ArtikelDialog>(
+            "Neuer Artikel",
+            parameter);
+
+    var ergebnis = await dialog.Result;
+
+    if (ergebnis is { Canceled: false })
+    {
+        await LadeDaten();
+    }
+}
+
+private async Task OeffneNeueKategorie()
+{
+    var dialog =
+        await DialogService.ShowAsync<KategorieDialog>(
+            "Neue Kategorie");
+
+    var ergebnis = await dialog.Result;
+
+    if (ergebnis is { Canceled: false })
+    {
+        await LadeDaten();
+
+        Snackbar.Add(
+            "Kategorie erfolgreich angelegt.",
+            Severity.Success);
+    }
+}
+
+private async Task OeffneBearbeiten(ArtikelDto a)
+{
+    if (kategorien.Count == 0)
     {
         await LadeDaten();
     }
 
-    private async Task LadeDaten()
+    var parameter = new DialogParameters
     {
-        try
-        {
-            artikel = await Http.GetFromJsonAsync<List<ArtikelDto>>("api/artikel");
-            kategorien = await Http.GetFromJsonAsync<List<ArtikelDialog.KategorieOption>>("api/kategorien") ?? new();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Fehler beim Laden: {ex.Message}", Severity.Error);
-            artikel = new();
-        }
+        ["Kategorien"] = kategorien,
+        ["BearbeiteArtikelId"] = a.ArtikelId,
+        ["Name"] = a.Name,
+        ["Preis"] = a.Preis,
+        ["AusgewaehlteKategorieId"] = a.KategorieId
+    };
+
+    var dialog =
+        await DialogService.ShowAsync<ArtikelDialog>(
+            "Artikel bearbeiten",
+            parameter);
+
+    var ergebnis = await dialog.Result;
+
+    if (ergebnis is { Canceled: false })
+    {
+        await LadeDaten();
     }
+}
 
-    private async Task OeffneNeu()
+private async Task Loeschen(ArtikelDto a)
+{
+    try
     {
-        var parameter = new DialogParameters
-        {
-            ["Kategorien"] = kategorien
-        };
-        var dialog = await DialogService.ShowAsync<ArtikelDialog>("Neuer Artikel", parameter);
-        var ergebnis = await dialog.Result;
+        var antwort =
+            await Http.DeleteAsync($"api/artikel/{a.ArtikelId}");
 
-        if (ergebnis is { Canceled: false })
+        if (antwort.IsSuccessStatusCode)
+        {
+            Snackbar.Add(
+                $"{a.Name} gelöscht.",
+                Severity.Success);
+
             await LadeDaten();
-    }
-
-    private async Task OeffneBearbeiten(ArtikelDto a)
-    {
-        var parameter = new DialogParameters
-        {
-            ["Kategorien"] = kategorien,
-            ["BearbeiteArtikelId"] = a.ArtikelId,
-            ["Name"] = a.Name,
-            ["Preis"] = a.Preis,
-            ["AusgewaehlteKategorieId"] = a.KategorieId
-        };
-        var dialog = await DialogService.ShowAsync<ArtikelDialog>("Artikel bearbeiten", parameter);
-        var ergebnis = await dialog.Result;
-
-        if (ergebnis is { Canceled: false })
-            await LadeDaten();
-    }
-
-    private async Task Loeschen(ArtikelDto a)
-    {
-        try
-        {
-            var antwort = await Http.DeleteAsync($"api/artikel/{a.ArtikelId}");
-            if (antwort.IsSuccessStatusCode)
-            {
-                Snackbar.Add($"{a.Name} gelöscht.", Severity.Success);
-                await LadeDaten();
-            }
-            else
-            {
-                var fehlertext = await antwort.Content.ReadAsStringAsync();
-                Snackbar.Add(string.IsNullOrWhiteSpace(fehlertext) ? "Löschen fehlgeschlagen." : fehlertext, Severity.Error);
-            }
         }
-        catch (Exception ex)
+        else
         {
-            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+            var fehlertext =
+                await antwort.Content.ReadAsStringAsync();
+
+            Snackbar.Add(
+                string.IsNullOrWhiteSpace(fehlertext)
+                    ? "Artikel konnte nicht gelöscht werden."
+                    : fehlertext,
+                Severity.Error);
         }
     }
+    catch (Exception ex)
+    {
+        Snackbar.Add(
+            $"Fehler beim Löschen: {ex.Message}",
+            Severity.Error);
+    }
+}
 
-    [Inject] private IDialogService DialogService { get; set; } = null!;
-    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+[Inject]
+private IDialogService DialogService { get; set; } = null!;
+
+[Inject]
+private ISnackbar Snackbar { get; set; } = null!;
+
 }
