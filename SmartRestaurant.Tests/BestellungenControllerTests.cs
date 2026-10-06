@@ -10,7 +10,7 @@ public class BestellungenControllerTests
     public async Task Create_OhnePositionen_IstBadRequest()
     {
         using var db = TestDb.Create();
-        var controller = new BestellungenController(db);
+        var controller = new BestellungenController(db, TestDb.CreateStatusLog());
 
         var result = await controller.Create(new NeueBestellungDto { TischId = 1, MitarbeiterId = 1 });
 
@@ -22,7 +22,7 @@ public class BestellungenControllerTests
     public async Task Create_SpeichertBestellungMitPreisAusDbUndBesetztTisch()
     {
         using var db = TestDb.Create();
-        var controller = new BestellungenController(db);
+        var controller = new BestellungenController(db, TestDb.CreateStatusLog());
 
         var result = await controller.Create(new NeueBestellungDto
         {
@@ -43,10 +43,11 @@ public class BestellungenControllerTests
     }
 
     [Fact]
-    public async Task SetStatus_Bezahlt_GibtTischFrei()
+    public async Task SetStatus_Bezahlt_GibtTischFreiUndSchreibtStatusLog()
     {
         using var db = TestDb.Create();
-        var controller = new BestellungenController(db);
+        var statusLog = TestDb.CreateStatusLog();
+        var controller = new BestellungenController(db, statusLog);
         var created = (CreatedAtActionResult)await controller.Create(new NeueBestellungDto
         {
             TischId = 1,
@@ -55,11 +56,16 @@ public class BestellungenControllerTests
         });
         var bestellungId = (uint)((BestellungDto)created.Value!).BestellungId;
 
-        var result = await controller.SetStatus(bestellungId, new StatusAendernDto { NeuerStatusId = 5 });
+        var result = await controller.SetStatus(bestellungId, new StatusAendernDto { NeuerStatusId = 5, MitarbeiterId = 1 });
 
         Assert.IsType<NoContentResult>(result);
         var bestellung = db.Bestellung.Single(b => b.BestellungId == bestellungId);
         Assert.NotNull(bestellung.Abschlusszeitpunkt);
         Assert.Equal(1u, db.Tisch.Single(t => t.TischId == 1).TischStatusId); // wieder frei
+
+        var eintrag = Assert.Single(statusLog.AlleLesen());
+        Assert.Equal("Offen", eintrag.AlterStatus);
+        Assert.Equal("Bezahlt", eintrag.NeuerStatus);
+        Assert.Equal("Anna Kellner", eintrag.MitarbeiterName);
     }
 }
