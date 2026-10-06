@@ -59,3 +59,9 @@ If you change the ports, update:
 - The employee select box was removed from the order page.
 - Until login is implemented, orders use employee ID 1 as a temporary fallback because the existing API requires `MitarbeiterId`.
 - No API/backend files were changed for this update.
+
+## Tests
+
+Automated tests live in `SmartRestaurant.Tests` and run on every push via GitHub Actions
+(`.github/workflows/tests.yml`). Run them locally with `dotnet test SmartRestaurant.Tests`.
+See [docs/TESTS.md](docs/TESTS.md) for the test report.
