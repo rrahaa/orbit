@@ -12,7 +12,7 @@ public static class Rollen
     public static string Startseite(string? rolle) => rolle switch
     {
         Service => "/order",
-        Bar => "/rechnung",
+        Bar => "/bar/order",
         Administration => "/admin/artikel",
         _ => "/login"
     };

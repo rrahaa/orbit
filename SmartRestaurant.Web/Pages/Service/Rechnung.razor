@@ -1,19 +1,10 @@
 @page "/rechnung"
 @inject HttpClient Http
-@inject AuthenticationStateProvider AuthProvider
-@using System.Security.Claims
 
 <PageTitle>Rechnung | Smart Restaurant</PageTitle>
 
 <div class="billing-shell">
-    <header class="page-header">
-        <div>
-            <p class="eyebrow">SMART RESTAURANT</p>
-            <h1>Rechnung & Tischabschluss</h1>
-            <p class="subtitle">Bestellungen prüfen, als serviert markieren und bezahlen.</p>
-        </div>
-
-    </header>
+    <WorkAreaHeader Area="Service" Title="Rechnung & Tischabschluss" />
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
@@ -165,7 +156,6 @@
     private List<BestellungDto> unpaidOrders => orders.Where(x => !IsPaid(x)).ToList();
 
     private TischUebersichtDto? selectedTable;
-    private int? mitarbeiterId;
     private bool isLoading = true;
     private bool isLoadingOrders;
     private bool isUpdating;
@@ -176,10 +166,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var state = await AuthProvider.GetAuthenticationStateAsync();
-        var idClaim = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        mitarbeiterId = int.TryParse(idClaim, out var id) ? id : null;
-
         await LoadTables();
     }
 
@@ -189,7 +175,7 @@
         errorMessage = null;
         try
         {
-            tables = await Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische") ?? new();
+            tables = (await Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische") ?? new()).Where(t => t.Tischnummer != BarBookingTable.Number).ToList();
 
             if (selectedTable is not null)
             {
@@ -237,12 +223,6 @@
 
     private async Task SetStatus(BestellungDto order, int statusId)
     {
-        if (mitarbeiterId is null)
-        {
-            errorMessage = "Kein angemeldeter Mitarbeiter gefunden. Bitte erneut anmelden.";
-            return;
-        }
-
         isUpdating = true;
         errorMessage = null;
         successMessage = null;
@@ -251,7 +231,7 @@
         {
             var response = await Http.PutAsJsonAsync(
                 $"api/bestellungen/{order.BestellungId}/status",
-                new StatusAendernDto { NeuerStatusId = statusId, MitarbeiterId = mitarbeiterId.Value });
+                new StatusAendernDto { NeuerStatusId = statusId });
 
             if (!response.IsSuccessStatusCode)
             {
@@ -279,12 +259,6 @@
 
     private async Task PayAll()
     {
-        if (mitarbeiterId is null)
-        {
-            errorMessage = "Kein angemeldeter Mitarbeiter gefunden. Bitte erneut anmelden.";
-            return;
-        }
-
         if (unpaidOrders.Count == 0)
             return;
 
@@ -298,7 +272,7 @@
             {
                 var response = await Http.PutAsJsonAsync(
                     $"api/bestellungen/{order.BestellungId}/status",
-                    new StatusAendernDto { NeuerStatusId = 5, MitarbeiterId = mitarbeiterId.Value });
+                    new StatusAendernDto { NeuerStatusId = 5 });
 
                 if (!response.IsSuccessStatusCode)
                 {

@@ -1,0 +1,5 @@
+@namespace SmartRestaurant.Web.BarViews
+@page "/bar/rechnung"
+@attribute [Authorize(Roles = $"{Rollen.Bar},{Rollen.Administration}")]
+<PageTitle>Barbestellungen | Smart Restaurant</PageTitle>
+<BarWorkspace />

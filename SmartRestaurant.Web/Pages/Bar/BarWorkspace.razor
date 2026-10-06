@@ -1,0 +1,160 @@
+@namespace SmartRestaurant.Web.BarViews
+@implements IAsyncDisposable
+@inject HttpClient Http
+
+<div class="order-shell">
+    <header class="work-header">
+        <div class="work-title"><p>SMART RESTAURANT · BAR</p><h1>Bestellübersicht</h1></div>
+        <div class="employee-window">
+            <span>Mitarbeiter</span>
+            <AuthorizeView><Authorized><strong>@context.User.Identity?.Name</strong></Authorized><NotAuthorized><strong>Nicht angemeldet</strong></NotAuthorized></AuthorizeView>
+        </div>
+    </header>
+
+    <div class="bar-toolbar">
+        <span class="muted">Automatische Aktualisierung alle 5 Sekunden</span>
+        <button class="secondary-button" disabled="@busy" @onclick="Refresh">Aktualisieren</button>
+    </div>
+    @if (error is not null) { <div class="message error-message" role="alert">@error</div> }
+    @if (success is not null) { <div class="message success-message" role="status">@success</div> }
+
+    <section class="panel orders-panel" aria-label="Offene Bestellungen">
+        <div class="panel-heading">
+            <h2>Offene Bestellungen</h2>
+            <span class="count-badge">@orders.Count</span>
+        </div>
+        @if (loading) { <p class="muted">Bestellungen werden geladen…</p> }
+        else if (orders.Count == 0 && error is null)
+        {
+            <div class="empty-state"><strong>Keine offenen Bestellungen</strong><p>Neue Bestellungen erscheinen hier automatisch.</p></div>
+        }
+        else
+        {
+            <div class="orders-grid">
+                @foreach (var order in orders.OrderBy(o => o.Bestelldatum).ThenBy(o => o.BestellungId))
+                {
+                    <article class="bar-order" @key="order.BestellungId">
+                        <div class="order-heading">
+                            <strong>Bestellung #@order.BestellungId</strong>
+                            <span class="status-pill @(IsProcessing(order) ? "status-processing" : "status-open")">@order.Status</span>
+                        </div>
+                        <p class="muted">@order.Bestelldatum.ToString("dd.MM.yyyy HH:mm") · @order.MitarbeiterName</p>
+                        <p class="order-location">@(order.Tischnummer == BarBookingTable.Number ? "Bar" : $"Tisch {order.Tischnummer}")</p>
+                        <div class="positions">
+                            @foreach (var position in order.Positionen)
+                            {
+                                <div class="position-row"><strong>@position.Menge ×</strong><span>@position.ArtikelName</span></div>
+                            }
+                        </div>
+                        <div class="order-actions">
+                            <button class="secondary-button" disabled="@(busy || IsProcessing(order))" @onclick="() => ChangeStatus(order, 2)">In Bearbeitung</button>
+                            <button class="primary-button" disabled="@busy" @onclick="() => ChangeStatus(order, 3)">Fertig</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<BestellungDto> orders = new();
+    private bool loading = true, busy, disposed;
+    private string? error, success;
+    private readonly CancellationTokenSource refreshCancellation = new();
+    private Task? refreshLoop;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+        if (!disposed) refreshLoop = PollOrders();
+    }
+
+    private async Task LoadOrders()
+    {
+        var incoming = await Http.GetFromJsonAsync<List<BestellungDto>>("api/bar/offen", refreshCancellation.Token) ?? new();
+        if (!disposed) orders = incoming.Where(IsOpenOrProcessing).ToList();
+    }
+
+    private async Task Refresh()
+    {
+        if (busy || disposed) return;
+        busy = true;
+        error = null;
+        try { await LoadOrders(); }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception ex) { error = "Bestellungen konnten nicht aktualisiert werden. " + ex.Message; }
+        finally { loading = false; busy = false; }
+    }
+
+    private async Task PollOrders()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(refreshCancellation.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await Refresh();
+                    if (!disposed) StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (refreshCancellation.IsCancellationRequested) { }
+    }
+
+    private async Task ChangeStatus(BestellungDto order, int statusId)
+    {
+        if (busy || disposed || (statusId != 2 && statusId != 3) || !IsOpenOrProcessing(order)) return;
+        busy = true;
+        error = null;
+        success = null;
+        try
+        {
+            // Vor dem Schreiben erneut prüfen: bereits abgeschlossene Bestellungen nicht zurücksetzen.
+            var currentOrders = await Http.GetFromJsonAsync<List<BestellungDto>>($"api/bestellungen/tisch/{order.TischId}", refreshCancellation.Token) ?? new();
+            var current = currentOrders.FirstOrDefault(o => o.BestellungId == order.BestellungId);
+            if (current is null || !IsOpenOrProcessing(current))
+            {
+                error = "Diese Bestellung wurde bereits weiterbearbeitet. Die Übersicht wird aktualisiert.";
+            }
+            else if (statusId == 2 && IsProcessing(current))
+            {
+                success = $"Bestellung #{order.BestellungId} ist bereits in Bearbeitung.";
+            }
+            else
+            {
+                using var response = await Http.PutAsJsonAsync($"api/bestellungen/{order.BestellungId}/status", new StatusAendernDto { NeuerStatusId = statusId }, refreshCancellation.Token);
+                if (!response.IsSuccessStatusCode)
+                    throw new InvalidOperationException($"API-Fehler {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+                success = statusId == 2
+                    ? $"Bestellung #{order.BestellungId} ist in Bearbeitung."
+                    : $"Bestellung #{order.BestellungId} ist fertig und wurde aus der offenen Übersicht entfernt.";
+            }
+        }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception ex) { error = "Status konnte nicht sicher geändert werden. Bitte den aktuellen Status prüfen. " + ex.Message; }
+        finally
+        {
+            if (!disposed)
+            {
+                try { await LoadOrders(); }
+                catch (OperationCanceledException) when (disposed) { }
+                catch (Exception ex) { error = (error ?? "") + " Übersicht konnte nicht aktualisiert werden. " + ex.Message; }
+            }
+            busy = false;
+        }
+    }
+
+    private static bool IsProcessing(BestellungDto order) => order.Status.Equals("In Bearbeitung", StringComparison.OrdinalIgnoreCase);
+    private static bool IsOpenOrProcessing(BestellungDto order) => order.Status.Equals("Offen", StringComparison.OrdinalIgnoreCase) || IsProcessing(order);
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        refreshCancellation.Cancel();
+        if (refreshLoop is not null) await refreshLoop;
+        refreshCancellation.Dispose();
+    }
+}

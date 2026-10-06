@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartRestaurant.Api.Data;
-using SmartRestaurant.Api.Services;
 using SmartRestaurant.Shared.Dtos;
 
 namespace SmartRestaurant.Api.Controllers;
@@ -11,13 +10,7 @@ namespace SmartRestaurant.Api.Controllers;
 public class BestellungenController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly StatusLogService _statusLog;
-
-    public BestellungenController(AppDbContext db, StatusLogService statusLog)
-    {
-        _db = db;
-        _statusLog = statusLog;
-    }
+    public BestellungenController(AppDbContext db) => _db = db;
 
     // GET /api/bestellungen/tisch/3  -> alle Bestellungen eines Tisches
     [HttpGet("tisch/{tischId}")]
@@ -84,22 +77,31 @@ public class BestellungenController : ControllerBase
         return CreatedAtAction(nameof(GetByTisch), new { tischId = bestellung.TischId }, ToDto(bestellung));
     }
 
+    private static BestellungDto ToDto(Models.Bestellung b) => new()
+    {
+        BestellungId = (int)b.BestellungId,
+        TischId = (int)b.TischId,
+        Tischnummer = (int)b.Tisch.Tischnummer,
+        MitarbeiterName = b.Mitarbeiter.Name,
+        Status = b.BestellStatus.Statusname,
+        Bestelldatum = b.Bestelldatum,
+        Abschlusszeitpunkt = b.Abschlusszeitpunkt,
+        Positionen = b.Bestellposition.Select(p => new BestellPositionDto
+        {
+            BestellpositionId = (int)p.BestellpositionId,
+            ArtikelId = (int)p.ArtikelId,
+            ArtikelName = p.Artikel.Name,
+            Menge = (int)p.Menge,
+            Einzelpreis = p.Einzelpreis
+        }).ToList()
+    };
+    
     // PUT /api/bestellungen/5/status
     [HttpPut("{id}/status")]
     public async Task<IActionResult> SetStatus(uint id, StatusAendernDto dto)
     {
-        var bestellung = await _db.Bestellung
-            .Include(b => b.BestellStatus)
-            .FirstOrDefaultAsync(b => b.BestellungId == id);
+        var bestellung = await _db.Bestellung.FindAsync(id);
         if (bestellung is null) return NotFound();
-
-        var alterStatusName = bestellung.BestellStatus.Statusname;
-
-        var neuerStatus = await _db.BestellStatus.FindAsync((uint)dto.NeuerStatusId);
-        if (neuerStatus is null) return BadRequest("Status existiert nicht.");
-
-        var mitarbeiter = await _db.Mitarbeiter.FindAsync((uint)dto.MitarbeiterId);
-        if (mitarbeiter is null) return BadRequest("Mitarbeiter existiert nicht.");
 
         bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
 
@@ -120,37 +122,6 @@ public class BestellungenController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-
-        _statusLog.Eintragen(new StatusLogEintragDto
-        {
-            BestellungId = (int)bestellung.BestellungId,
-            TischId = (int)bestellung.TischId,
-            MitarbeiterId = (int)mitarbeiter.MitarbeiterId,
-            MitarbeiterName = mitarbeiter.Name,
-            AlterStatus = alterStatusName,
-            NeuerStatus = neuerStatus.Statusname,
-            Zeitstempel = DateTime.Now
-        });
-
         return NoContent();
     }
-
-    private static BestellungDto ToDto(Models.Bestellung b) => new()
-    {
-        BestellungId = (int)b.BestellungId,
-        TischId = (int)b.TischId,
-        Tischnummer = (int)b.Tisch.Tischnummer,
-        MitarbeiterName = b.Mitarbeiter.Name,
-        Status = b.BestellStatus.Statusname,
-        Bestelldatum = b.Bestelldatum,
-        Abschlusszeitpunkt = b.Abschlusszeitpunkt,
-        Positionen = b.Bestellposition.Select(p => new BestellPositionDto
-        {
-            BestellpositionId = (int)p.BestellpositionId,
-            ArtikelId = (int)p.ArtikelId,
-            ArtikelName = p.Artikel.Name,
-            Menge = (int)p.Menge,
-            Einzelpreis = p.Einzelpreis
-        }).ToList()
-    };
 }

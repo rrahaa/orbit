@@ -1,0 +1,17 @@
+<header class="work-header">
+    <div class="work-title"><p>SMART RESTAURANT · @Area.ToUpperInvariant()</p><h1>@Title</h1></div>
+    <nav class="work-tabs" aria-label="@(Area + " Navigation")">
+        <NavLink href="@OrderUrl" Match="NavLinkMatch.All">Bestellung</NavLink>
+        <NavLink href="@InvoiceUrl" Match="NavLinkMatch.All">Rechnung</NavLink>
+    </nav>
+    <div class="employee-window">
+        <span>Mitarbeiter</span>
+        <AuthorizeView><Authorized><strong>@context.User.Identity?.Name</strong></Authorized><NotAuthorized><strong>Nicht angemeldet</strong></NotAuthorized></AuthorizeView>
+    </div>
+</header>
+@code {
+    [Parameter] public string Area { get; set; } = "Service";
+    [Parameter] public string Title { get; set; } = "";
+    private string OrderUrl => Area == "Bar" ? "/bar/order" : "/order";
+    private string InvoiceUrl => Area == "Bar" ? "/bar/rechnung" : "/rechnung";
+}

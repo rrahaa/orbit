@@ -1,13 +1,13 @@
 ﻿services:
   database:
     image: mysql:8.4
-    container_name: mysql-database
+    container_name: mysql-database2
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: orbit_root
+      MYSQL_DATABASE: orbit
+      MYSQL_USER: orbit
+      MYSQL_PASSWORD: orbit_pw
     ports:
       - "3307:3306"
     volumes:
@@ -16,7 +16,7 @@
 
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: phpmyadmin
+    container_name: phpmyadmin2
     restart: unless-stopped
     depends_on:
       - database

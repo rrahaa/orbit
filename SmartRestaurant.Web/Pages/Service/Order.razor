@@ -1,22 +1,12 @@
 @page "/order"
 @inject HttpClient Http
-@inject AuthenticationStateProvider AuthProvider
+@inject AuthenticationStateProvider Auth
 @using System.Security.Claims
 
 <PageTitle>Bestellung | Smart Restaurant</PageTitle>
 
 <div class="order-shell">
-    <header class="app-header">
-        <div>
-            <p class="eyebrow">SMART RESTAURANT</p>
-            <h1>Bestellung aufnehmen</h1>
-        </div>
-
-        <div class="login-assignment">
-            <span class="login-label">Mitarbeiter</span>
-            <strong>@(mitarbeiterName ?? "Unbekannt")</strong>
-        </div>
-    </header>
+    <WorkAreaHeader Area="Service" Title="Bestellung aufnehmen" />
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
@@ -185,8 +175,7 @@
     private List<ArtikelDto> products = new();
     private List<TischUebersichtDto> tables = new();
     private TischUebersichtDto? selectedTable;
-    private int? mitarbeiterId;
-    private string? mitarbeiterName;
+    private int employeeId;
     private string selectedCategory = string.Empty;
     private string searchText = string.Empty;
     private string? errorMessage;
@@ -212,11 +201,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var state = await AuthProvider.GetAuthenticationStateAsync();
-        var idClaim = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        mitarbeiterId = int.TryParse(idClaim, out var id) ? id : null;
-        mitarbeiterName = state.User.FindFirst(ClaimTypes.Name)?.Value;
-
+        var state = await Auth.GetAuthenticationStateAsync();
+        int.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out employeeId);
         await LoadData();
     }
 
@@ -233,7 +219,7 @@
             await Task.WhenAll(productTask!, tableTask!);
 
             products = await productTask ?? new();
-            tables = await tableTask ?? new();
+            tables = (await tableTask ?? new()).Where(t => t.Tischnummer != BarBookingTable.Number).ToList();
         }
         catch (Exception ex)
         {
@@ -285,10 +271,9 @@
 
     private async Task SubmitOrder()
     {
-        if (selectedTable is null || cart.Count == 0)
+        if (selectedTable is null || cart.Count == 0 || isSubmitting)
             return;
-
-        if (mitarbeiterId is null)
+        if (employeeId <= 0)
         {
             errorMessage = "Kein angemeldeter Mitarbeiter gefunden. Bitte erneut anmelden.";
             return;
@@ -303,7 +288,7 @@
             var dto = new NeueBestellungDto
             {
                 TischId = selectedTable.TischId,
-                MitarbeiterId = mitarbeiterId.Value,
+                MitarbeiterId = employeeId,
                 Positionen = cart.Select(x => new NeueBestellPositionDto
                 {
                     ArtikelId = x.Product.ArtikelId,
@@ -324,7 +309,8 @@
             cart.Clear();
             successMessage = $"Bestellung für Tisch {tableNumber} wurde erfolgreich gespeichert.";
 
-            tables = await Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische") ?? new();
+            // Reload tables so the selected table immediately changes to "besetzt".
+            tables = (await Http.GetFromJsonAsync<List<TischUebersichtDto>>("api/tische") ?? new()).Where(t => t.Tischnummer != BarBookingTable.Number).ToList();
             selectedTable = tables.FirstOrDefault(x => x.TischId == selectedTable.TischId);
         }
         catch (Exception ex)
