@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartRestaurant.Api.Data;
+using SmartRestaurant.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 builder.Services.AddControllers();
+builder.Services.AddSingleton<StatusLogService>();
 
 var app = builder.Build();
 

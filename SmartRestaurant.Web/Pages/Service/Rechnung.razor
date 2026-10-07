@@ -1,5 +1,7 @@
 @page "/rechnung"
 @inject HttpClient Http
+@inject AuthenticationStateProvider Auth
+@using System.Security.Claims
 
 <PageTitle>Rechnung | Smart Restaurant</PageTitle>
 
@@ -164,8 +166,12 @@
 
     private decimal OpenTotal => unpaidOrders.Sum(x => x.Gesamtsumme);
 
+    private int employeeId;
+
     protected override async Task OnInitializedAsync()
     {
+        var state = await Auth.GetAuthenticationStateAsync();
+        int.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out employeeId);
         await LoadTables();
     }
 
@@ -231,7 +237,7 @@
         {
             var response = await Http.PutAsJsonAsync(
                 $"api/bestellungen/{order.BestellungId}/status",
-                new StatusAendernDto { NeuerStatusId = statusId });
+                new StatusAendernDto { NeuerStatusId = statusId, MitarbeiterId = employeeId });
 
             if (!response.IsSuccessStatusCode)
             {
@@ -272,7 +278,7 @@
             {
                 var response = await Http.PutAsJsonAsync(
                     $"api/bestellungen/{order.BestellungId}/status",
-                    new StatusAendernDto { NeuerStatusId = 5 });
+                    new StatusAendernDto { NeuerStatusId = 5, MitarbeiterId = employeeId });
 
                 if (!response.IsSuccessStatusCode)
                 {

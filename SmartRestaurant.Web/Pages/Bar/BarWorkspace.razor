@@ -1,6 +1,8 @@
 @namespace SmartRestaurant.Web.BarViews
 @implements IAsyncDisposable
 @inject HttpClient Http
+@inject AuthenticationStateProvider Auth
+@using System.Security.Claims
 
 <div class="order-shell">
     <header class="work-header">
@@ -63,9 +65,12 @@
     private string? error, success;
     private readonly CancellationTokenSource refreshCancellation = new();
     private Task? refreshLoop;
+    private int employeeId;
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await Auth.GetAuthenticationStateAsync();
+        int.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out employeeId);
         await Refresh();
         if (!disposed) refreshLoop = PollOrders();
     }
@@ -125,7 +130,7 @@
             }
             else
             {
-                using var response = await Http.PutAsJsonAsync($"api/bestellungen/{order.BestellungId}/status", new StatusAendernDto { NeuerStatusId = statusId }, refreshCancellation.Token);
+                using var response = await Http.PutAsJsonAsync($"api/bestellungen/{order.BestellungId}/status", new StatusAendernDto { NeuerStatusId = statusId, MitarbeiterId = employeeId }, refreshCancellation.Token);
                 if (!response.IsSuccessStatusCode)
                     throw new InvalidOperationException($"API-Fehler {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
                 success = statusId == 2

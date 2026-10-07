@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartRestaurant.Api.Data;
+using SmartRestaurant.Api.Services;
 using SmartRestaurant.Shared.Dtos;
 
 namespace SmartRestaurant.Api.Controllers;
@@ -10,7 +11,13 @@ namespace SmartRestaurant.Api.Controllers;
 public class BestellungenController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public BestellungenController(AppDbContext db) => _db = db;
+    private readonly StatusLogService _statusLog;
+
+    public BestellungenController(AppDbContext db, StatusLogService statusLog)
+    {
+        _db = db;
+        _statusLog = statusLog;
+    }
 
     // GET /api/bestellungen/tisch/3  -> alle Bestellungen eines Tisches
     [HttpGet("tisch/{tischId}")]
@@ -100,8 +107,18 @@ public class BestellungenController : ControllerBase
     [HttpPut("{id}/status")]
     public async Task<IActionResult> SetStatus(uint id, StatusAendernDto dto)
     {
-        var bestellung = await _db.Bestellung.FindAsync(id);
+        var bestellung = await _db.Bestellung
+            .Include(b => b.BestellStatus)
+            .FirstOrDefaultAsync(b => b.BestellungId == id);
         if (bestellung is null) return NotFound();
+
+        var alterStatusName = bestellung.BestellStatus.Statusname;
+
+        var neuerStatus = await _db.BestellStatus.FindAsync((uint)dto.NeuerStatusId);
+        if (neuerStatus is null) return BadRequest("Status existiert nicht.");
+
+        var mitarbeiter = await _db.Mitarbeiter.FindAsync((uint)dto.MitarbeiterId);
+        if (mitarbeiter is null) return BadRequest("Mitarbeiter existiert nicht.");
 
         bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
 
@@ -122,6 +139,18 @@ public class BestellungenController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        _statusLog.Eintragen(new StatusLogEintragDto
+        {
+            BestellungId = (int)bestellung.BestellungId,
+            TischId = (int)bestellung.TischId,
+            MitarbeiterId = (int)mitarbeiter.MitarbeiterId,
+            MitarbeiterName = mitarbeiter.Name,
+            AlterStatus = alterStatusName,
+            NeuerStatus = neuerStatus.Statusname,
+            Zeitstempel = DateTime.Now
+        });
+
         return NoContent();
     }
 }
