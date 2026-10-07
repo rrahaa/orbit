@@ -54,6 +54,8 @@ public static class TestDb
         db.BestellStatus.AddRange(
             new BestellStatus { BestellStatusId = 1, Statusname = "Offen" },
             new BestellStatus { BestellStatusId = 2, Statusname = "In Bearbeitung" },
+            new BestellStatus { BestellStatusId = 3, Statusname = "Fertig" },
+            new BestellStatus { BestellStatusId = 4, Statusname = "Serviert" },
             new BestellStatus { BestellStatusId = 5, Statusname = "Bezahlt" });
 
         db.ArtikelKategorie.Add(new ArtikelKategorie { KategorieId = 1, Kategoriename = "Getränke" });

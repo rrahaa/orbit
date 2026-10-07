@@ -122,14 +122,15 @@ public class BestellungenController : ControllerBase
 
         bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
 
-        if (dto.NeuerStatusId == 5) // Bezahlt
+        if (Models.BestellStatus.Abgeschlossen.Contains(bestellung.BestellStatusId)) // Serviert oder Bezahlt
         {
-            bestellung.Abschlusszeitpunkt = DateTime.Now;
+            bestellung.Abschlusszeitpunkt ??= DateTime.Now;
             await _db.SaveChangesAsync();
 
             // Tisch nur freigeben, wenn KEINE andere Bestellung dieses Tisches noch offen ist
             var nochOffen = await _db.Bestellung
-                .AnyAsync(b => b.TischId == bestellung.TischId && b.BestellStatusId != 5);
+                .AnyAsync(b => b.TischId == bestellung.TischId
+                               && !Models.BestellStatus.Abgeschlossen.Contains(b.BestellStatusId));
 
             if (!nochOffen)
             {

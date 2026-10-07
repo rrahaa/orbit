@@ -21,7 +21,8 @@ public class StatistikController : ControllerBase
         var positionenDieserWoche = await _db.Bestellposition
             .Include(p => p.Bestellung)
             .Include(p => p.Artikel)
-            .Where(p => p.Bestellung.Bestelldatum >= seit && p.Bestellung.BestellStatusId == 5) // nur bezahlte
+            .Where(p => p.Bestellung.Bestelldatum >= seit
+                        && Models.BestellStatus.Abgeschlossen.Contains(p.Bestellung.BestellStatusId)) // serviert oder bezahlt
             .ToListAsync();
 
         var umsatz = positionenDieserWoche.Sum(p => p.Menge * p.Einzelpreis);
