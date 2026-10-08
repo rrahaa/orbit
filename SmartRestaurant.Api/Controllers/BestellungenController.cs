@@ -122,7 +122,7 @@ public class BestellungenController : ControllerBase
 
         bestellung.BestellStatusId = (uint)dto.NeuerStatusId;
 
-        if (Models.BestellStatus.Abgeschlossen.Contains(bestellung.BestellStatusId)) // Serviert oder Bezahlt
+        if (Models.BestellStatus.Abgeschlossen.Contains(bestellung.BestellStatusId)) // Fertig, Serviert oder Bezahlt
         {
             bestellung.Abschlusszeitpunkt ??= DateTime.Now;
             await _db.SaveChangesAsync();

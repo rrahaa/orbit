@@ -8,7 +8,7 @@ namespace SmartRestaurant.Tests;
 public class StatistikControllerTests
 {
     [Fact]
-    public async Task GetWoche_ZaehltServierteUndBezahlteBestellungenDerLetzten7Tage()
+    public async Task GetWoche_ZaehltAbgeschlosseneBestellungenDerLetzten7Tage()
     {
         using var db = TestDb.Create();
         db.Bestellung.AddRange(
@@ -17,7 +17,8 @@ public class StatistikControllerTests
             Bestellung(3, statusId: 1, tageAlt: 1, artikelId: 1, menge: 10), // offen -> zählt nicht
             Bestellung(4, statusId: 5, tageAlt: 30, artikelId: 1, menge: 10), // zu alt -> zählt nicht
             Bestellung(5, statusId: 4, tageAlt: 1, artikelId: 1, menge: 1),  // serviert -> zählt: 1 x Cola
-            Bestellung(6, statusId: 3, tageAlt: 1, artikelId: 1, menge: 10)  // nur fertig -> zählt nicht
+            Bestellung(6, statusId: 3, tageAlt: 1, artikelId: 2, menge: 1),  // fertig -> zählt: 1 x Bier
+            Bestellung(7, statusId: 2, tageAlt: 1, artikelId: 1, menge: 10)  // in Bearbeitung -> zählt nicht
         );
         await db.SaveChangesAsync();
         var controller = new StatistikController(db);
@@ -25,9 +26,9 @@ public class StatistikControllerTests
         var result = await controller.GetWoche();
 
         var dto = Assert.IsType<StatistikDto>(Assert.IsType<OkObjectResult>(result).Value);
-        Assert.Equal(3 * 4.20m + 2 * 3.50m, dto.Wochenumsatz);
+        Assert.Equal(4 * 4.20m + 2 * 3.50m, dto.Wochenumsatz);
         Assert.Equal("Bier", dto.MeistverkauftesGetraenk);
-        Assert.Equal(3, dto.MeistverkaufteMenge);
+        Assert.Equal(4, dto.MeistverkaufteMenge);
     }
 
     private static Bestellung Bestellung(uint id, uint statusId, int tageAlt, uint artikelId, uint menge) => new()

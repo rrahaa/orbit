@@ -84,7 +84,7 @@ public class BestellungenControllerTests
     }
 
     [Fact]
-    public async Task SetStatus_Fertig_TischBleibtBesetzt()
+    public async Task SetStatus_Fertig_GibtTischFrei()
     {
         using var db = TestDb.Create();
         var controller = new BestellungenController(db, TestDb.CreateStatusLog());
@@ -92,21 +92,34 @@ public class BestellungenControllerTests
 
         await controller.SetStatus(bestellungId, new StatusAendernDto { NeuerStatusId = 3, MitarbeiterId = 1 });
 
+        Assert.NotNull(db.Bestellung.Single(b => b.BestellungId == bestellungId).Abschlusszeitpunkt);
+        Assert.Equal(1u, db.Tisch.Single(t => t.TischId == 1).TischStatusId); // wieder frei
+    }
+
+    [Fact]
+    public async Task SetStatus_InBearbeitung_TischBleibtBesetzt()
+    {
+        using var db = TestDb.Create();
+        var controller = new BestellungenController(db, TestDb.CreateStatusLog());
+        var bestellungId = await NeueBestellung(controller, tischId: 1);
+
+        await controller.SetStatus(bestellungId, new StatusAendernDto { NeuerStatusId = 2, MitarbeiterId = 1 });
+
         Assert.Equal(2u, db.Tisch.Single(t => t.TischId == 1).TischStatusId); // noch besetzt
     }
 
     [Fact]
-    public async Task SetStatus_Serviert_TischBleibtBesetztSolangeAndereBestellungOffen()
+    public async Task SetStatus_Fertig_TischBleibtBesetztSolangeAndereBestellungOffen()
     {
         using var db = TestDb.Create();
         var controller = new BestellungenController(db, TestDb.CreateStatusLog());
         var erste = await NeueBestellung(controller, tischId: 1);
         var zweite = await NeueBestellung(controller, tischId: 1);
 
-        await controller.SetStatus(erste, new StatusAendernDto { NeuerStatusId = 4, MitarbeiterId = 1 });
+        await controller.SetStatus(erste, new StatusAendernDto { NeuerStatusId = 3, MitarbeiterId = 1 });
         Assert.Equal(2u, db.Tisch.Single(t => t.TischId == 1).TischStatusId); // zweite noch offen
 
-        await controller.SetStatus(zweite, new StatusAendernDto { NeuerStatusId = 4, MitarbeiterId = 1 });
+        await controller.SetStatus(zweite, new StatusAendernDto { NeuerStatusId = 3, MitarbeiterId = 1 });
         Assert.Equal(1u, db.Tisch.Single(t => t.TischId == 1).TischStatusId);
     }
 
